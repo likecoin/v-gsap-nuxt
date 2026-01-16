@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.5.2
+
+[compare changes](https://github.com/holux-design/v-gsap-nuxt/compare/v1.5.1...v1.5.2)
+
+### 🏡 Chore
+
+- Refactor SplitText integration to improve mask handling, hydration support, and descender clipping adjustments ([8b02a9a](https://github.com/holux-design/v-gsap-nuxt/commit/8b02a9a))
+
+### ❤️ Contributors
+
+- Simone Franchina <simone@italianonprofit.it>
+
 ## v1.5.1
 
 [compare changes](https://github.com/holux-design/v-gsap-nuxt/compare/v1.5.0...v1.5.1)
