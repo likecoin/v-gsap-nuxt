@@ -55,18 +55,10 @@ export const vGsapDirective = (
 
   async beforeMount(el, binding, vnode) {
     binding = loadPreset(binding, configOptions)
-    el.dataset.gsapId = uuidv4()
 
-    // Only set data attributes if modifiers are present to match SSR behavior
-    if (binding.modifiers.fromInvisible) {
-      el.dataset.vgsapFromInvisible = binding.modifiers.fromInvisible
-    }
-    if (binding.modifiers.stagger) {
-      el.dataset.vgsapStagger = binding.modifiers.stagger
-    }
-    if (binding.modifiers.mask) {
-      el.dataset.vgsapMask = binding.modifiers.mask
-    }
+    // Store gsapId on the element object (not as data attribute yet to avoid hydration mismatch)
+    const gsapId = uuidv4()
+    el._gsapId = gsapId
 
     if (!gsapContext) gsapContext = gsap.context(() => {})
 
@@ -83,27 +75,38 @@ export const vGsapDirective = (
         configOptions,
         true, // skipSplitText
       )
-      globalTimelines[el.dataset.gsapId] = timeline
-      el.dataset.gsapTimeline = true
+      globalTimelines[gsapId] = timeline
 
-      gsapContext.add(() => globalTimelines[el.dataset.gsapId])
+      gsapContext.add(() => globalTimelines[gsapId])
     }
   },
 
   async mounted(el, binding) {
+    // Wait for hydration to complete before any GSAP manipulation
+    // This prevents hydration mismatch warnings in Nuxt
+    await nextTick()
+
+    // Use requestAnimationFrame to ensure we're after hydration
+    await new Promise(resolve => requestAnimationFrame(resolve))
+
+    // DON'T add data-gsap-id or data-gsap-timeline to DOM to avoid hydration mismatch
+    // These are only stored as internal properties (el._gsapId)
+    // Only data-vgsap-* from SSR are kept
+
     let timeline
     const mm = gsap.matchMedia()
 
     // Refresh scrollTrigger from .timeline after all has mounted
     if (binding.modifiers.timeline) {
+      // DON'T set el.dataset.gsapTimeline - causes hydration mismatch
+
       // If the timeline element itself uses SplitText, we need to recreate the timeline
       // after hydration to ensure proper DOM manipulation order
       if (binding.modifiers.splitText && !el._splitText) {
-        // Wait for next tick to ensure hydration is complete before manipulating DOM
-        await nextTick()
+        // SplitText already waited above
 
         // Kill the existing timeline created in beforeMount
-        const existingTimeline = globalTimelines[el.dataset.gsapId]
+        const existingTimeline = globalTimelines[el._gsapId]
         if (existingTimeline) {
           existingTimeline.scrollTrigger?.kill()
           existingTimeline.kill()
@@ -111,14 +114,14 @@ export const vGsapDirective = (
 
         // Recreate the timeline with SplitText
         const newTimeline = prepareTimeline(el, binding, configOptions, false)
-        globalTimelines[el.dataset.gsapId] = newTimeline
-        gsapContext.add(() => globalTimelines[el.dataset.gsapId])
+        globalTimelines[el._gsapId] = newTimeline
+        gsapContext.add(() => globalTimelines[el._gsapId])
       }
 
       // Wait for next tick to ensure all child .add directives have been added
       await nextTick()
 
-      globalTimelines[el.dataset.gsapId]?.scrollTrigger?.refresh()
+      globalTimelines[el._gsapId]?.scrollTrigger?.refresh()
       ScrollTrigger?.normalizeScroll(true)
     }
     else {
@@ -195,8 +198,11 @@ export const vGsapDirective = (
   },
 
   unmounted(el) {
-    ScrollTrigger.getById(el.dataset.gsapId)?.kill()
-    globalTimelines[el.dataset.gsapId]?.scrollTrigger?.kill()
+    const gsapId = el._gsapId || el.dataset.gsapId
+    if (gsapId) {
+      ScrollTrigger.getById(gsapId)?.kill()
+      globalTimelines[gsapId]?.scrollTrigger?.kill()
+    }
 
     // Clean up SplitText if it exists
     if (el._splitText) {
@@ -330,7 +336,10 @@ function prepareSplitText(el, binding) {
 
       // If there is a ScrollTrigger tied to this element, refresh it after splitting
       try {
-        ScrollTrigger.getById?.(el.dataset.gsapId)?.refresh?.()
+        const gsapId = el._gsapId || el.dataset.gsapId
+        if (gsapId) {
+          ScrollTrigger.getById?.(gsapId)?.refresh?.()
+        }
       }
       catch (e) {
         /* noop */
@@ -390,10 +399,12 @@ function prepareTimeline(el, binding, configOptions, skipSplitText = false) {
     ?? (once == true ? false : undefined)
     ?? true
   const markers = binding.modifiers.markers
+  const gsapId = el._gsapId || el.dataset.gsapId
+
   if (binding.modifiers.whenVisible) {
     timelineOptions.scrollTrigger = {
       trigger: el,
-      id: el.dataset.gsapId,
+      id: gsapId,
       start: binding.value?.start ?? 'top 90%',
       end: binding.value?.end ?? 'top 50%',
       scroller,
@@ -412,7 +423,7 @@ function prepareTimeline(el, binding, configOptions, skipSplitText = false) {
     const end = binding.value?.end ?? '+=1000px'
     timelineOptions.scrollTrigger = {
       trigger: el,
-      id: el.dataset.gsapId,
+      id: gsapId,
       start: binding.value?.start ?? 'center center',
       end,
       scroller,
@@ -427,7 +438,7 @@ function prepareTimeline(el, binding, configOptions, skipSplitText = false) {
   if (binding.modifiers.parallax) {
     timelineOptions.scrollTrigger = {
       trigger: el,
-      id: el.dataset.gsapId,
+      id: gsapId,
       start: `top bottom`,
       end: `bottom top`,
       scroller,
