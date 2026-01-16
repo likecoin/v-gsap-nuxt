@@ -67,10 +67,13 @@ export const vGsapDirective = (
 
       await nextTick()
 
+      // Skip SplitText creation in beforeMount to avoid hydration issues
+      // It will be created in mounted hook
       const timeline = prepareTimeline(
         el,
         binding,
         configOptions,
+        true, // skipSplitText
       )
       globalTimelines[el.dataset.gsapId] = timeline
       el.dataset.gsapTimeline = true
@@ -79,12 +82,34 @@ export const vGsapDirective = (
     }
   },
 
-  mounted(el, binding) {
+  async mounted(el, binding) {
     let timeline
     const mm = gsap.matchMedia()
 
     // Refresh scrollTrigger from .timeline after all has mounted
     if (binding.modifiers.timeline) {
+      // If the timeline element itself uses SplitText, we need to recreate the timeline
+      // after hydration to ensure proper DOM manipulation order
+      if (binding.modifiers.splitText && !el._splitText) {
+        // Wait for next tick to ensure hydration is complete before manipulating DOM
+        await nextTick()
+
+        // Kill the existing timeline created in beforeMount
+        const existingTimeline = globalTimelines[el.dataset.gsapId]
+        if (existingTimeline) {
+          existingTimeline.scrollTrigger?.kill()
+          existingTimeline.kill()
+        }
+
+        // Recreate the timeline with SplitText
+        const newTimeline = prepareTimeline(el, binding, configOptions, false)
+        globalTimelines[el.dataset.gsapId] = newTimeline
+        gsapContext.add(() => globalTimelines[el.dataset.gsapId])
+      }
+
+      // Wait for next tick to ensure all child .add directives have been added
+      await nextTick()
+
       globalTimelines[el.dataset.gsapId]?.scrollTrigger?.refresh()
       ScrollTrigger?.normalizeScroll(true)
     }
@@ -92,6 +117,11 @@ export const vGsapDirective = (
       // All directives that are not .timeline
 
       if (binding.modifiers.magnetic) return addMagneticEffect(el, binding)
+
+      // Wait for next tick before DOM manipulation for splitText
+      if (binding.modifiers.splitText) {
+        await nextTick()
+      }
 
       const breakpoint = configOptions?.breakpoint || 768
       if (binding.modifiers.desktop) {
@@ -246,6 +276,35 @@ function prepareSplitText(el, binding) {
       const instance = new SplitText(el, splitOptions)
       el._splitText = instance
 
+      // Apply padding to mask containers to prevent clipping of descenders (g, p, q, y, j)
+      if (binding.modifiers.mask) {
+        const maskPadding = splitOptions.maskPadding ?? '0'
+        const containers = []
+
+        // Get the appropriate mask containers based on split type
+        if (splitOptions.mask === 'lines' && instance.lines) {
+          // For lines mask, each line is wrapped in a parent container with overflow
+          containers.push(...Array.from(instance.lines).map((line: any) => line.parentElement).filter(Boolean))
+        }
+        else if (splitOptions.mask === 'words' && instance.words) {
+          containers.push(...Array.from(instance.words).map((word: any) => word.parentElement).filter(Boolean))
+        }
+        else if (splitOptions.mask === 'chars' && instance.chars) {
+          containers.push(...Array.from(instance.chars).map((char: any) => char.parentElement).filter(Boolean))
+        }
+
+        // Apply padding-bottom to prevent clipping descenders
+        containers.forEach((container: HTMLElement) => {
+          if (container && container.style) {
+            container.style.paddingBottom = maskPadding
+            // Ensure line-height is sufficient for descenders
+            if (!container.style.lineHeight || container.style.lineHeight === 'normal') {
+              container.style.lineHeight = 'normal'
+            }
+          }
+        })
+      }
+
       // Fire user callback if provided
       if (typeof onSplitCb === 'function') {
         try {
@@ -296,11 +355,12 @@ function prepareSplitText(el, binding) {
   }
 }
 
-function prepareTimeline(el, binding, configOptions) {
+function prepareTimeline(el, binding, configOptions, skipSplitText = false) {
   const timelineOptions: TIMELINE_OPTIONS = {}
 
   // Prepare SplitText if needed before creating the timeline
-  if (binding.modifiers.splitText && !el._splitText) {
+  // Skip in beforeMount to avoid hydration issues, will be done in mounted
+  if (binding.modifiers.splitText && !el._splitText && !skipSplitText) {
     prepareSplitText(el, binding)
   }
 
