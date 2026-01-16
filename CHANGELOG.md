@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.5.6
+
+[compare changes](https://github.com/holux-design/v-gsap-nuxt/compare/v1.5.5...v1.5.6)
+
+### 🏡 Chore
+
+- Refactor GSAP ID handling to prevent hydration mismatches and improve SSR compatibility in `plugin.ts` ([822990c](https://github.com/holux-design/v-gsap-nuxt/commit/822990c))
+
+### ❤️ Contributors
+
+- Simone Franchina <simone@italianonprofit.it>
+
 ## v1.5.5
 
 [compare changes](https://github.com/holux-design/v-gsap-nuxt/compare/v1.5.4...v1.5.5)
