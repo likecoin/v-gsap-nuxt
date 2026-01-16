@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.5.4
+
+[compare changes](https://github.com/holux-design/v-gsap-nuxt/compare/v1.5.3...v1.5.4)
+
+### 🏡 Chore
+
+- Ensure data attributes in plugin.ts only set when modifiers are present to align with SSR behavior ([8b5e189](https://github.com/holux-design/v-gsap-nuxt/commit/8b5e189))
+
+### ❤️ Contributors
+
+- Simone Franchina <simone@italianonprofit.it>
+
 ## v1.5.3
 
 [compare changes](https://github.com/holux-design/v-gsap-nuxt/compare/v1.5.2...v1.5.3)
