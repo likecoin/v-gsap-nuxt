@@ -56,9 +56,17 @@ export const vGsapDirective = (
   async beforeMount(el, binding, vnode) {
     binding = loadPreset(binding, configOptions)
     el.dataset.gsapId = uuidv4()
-    el.dataset.vgsapFromInvisible = binding.modifiers.fromInvisible
-    el.dataset.vgsapStagger = binding.modifiers.stagger
-    el.dataset.vgsapMask = binding.modifiers.mask
+
+    // Only set data attributes if modifiers are present to match SSR behavior
+    if (binding.modifiers.fromInvisible) {
+      el.dataset.vgsapFromInvisible = binding.modifiers.fromInvisible
+    }
+    if (binding.modifiers.stagger) {
+      el.dataset.vgsapStagger = binding.modifiers.stagger
+    }
+    if (binding.modifiers.mask) {
+      el.dataset.vgsapMask = binding.modifiers.mask
+    }
 
     if (!gsapContext) gsapContext = gsap.context(() => {})
 
