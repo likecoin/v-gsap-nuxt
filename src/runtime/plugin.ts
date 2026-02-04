@@ -2,12 +2,13 @@ import Draggable from 'gsap/Draggable'
 import { ScrollTrigger, ScrollToPlugin } from 'gsap/all'
 import { gsap } from 'gsap'
 import TextPlugin from 'gsap/TextPlugin'
+import { SplitText } from 'gsap/SplitText'
 import { nextTick } from 'vue'
 import { uuidv4 } from './utils/utils'
 import { entrancePresets } from './utils/entrance-presets'
 import type { Preset } from './types/Preset'
 
-gsap.registerPlugin(ScrollTrigger, ScrollToPlugin, Draggable, TextPlugin)
+gsap.registerPlugin(ScrollTrigger, ScrollToPlugin, Draggable, TextPlugin, SplitText)
 
 type ANIMATION_TYPES = 'from' | 'to' | 'set' | 'fromTo' | 'call'
 
@@ -48,14 +49,16 @@ export const vGsapDirective = (
     return {
       'data-vgsap-from-invisible': binding.modifiers.fromInvisible,
       'data-vgsap-stagger': binding.modifiers.stagger,
+      'data-vgsap-mask': binding.modifiers.mask,
     }
   },
 
   async beforeMount(el, binding, vnode) {
     binding = loadPreset(binding, configOptions)
-    el.dataset.gsapId = uuidv4()
-    el.dataset.vgsapFromInvisible = binding.modifiers.fromInvisible
-    el.dataset.vgsapStagger = binding.modifiers.stagger
+
+    // Store gsapId on the element object (not as data attribute yet to avoid hydration mismatch)
+    const gsapId = uuidv4()
+    el._gsapId = gsapId
 
     if (!gsapContext) gsapContext = gsap.context(() => {})
 
@@ -64,30 +67,72 @@ export const vGsapDirective = (
 
       await nextTick()
 
-      globalTimelines[el.dataset.gsapId] = prepareTimeline(
+      // Skip SplitText creation in beforeMount to avoid hydration issues
+      // It will be created in mounted hook
+      const timeline = prepareTimeline(
         el,
         binding,
         configOptions,
+        true, // skipSplitText
       )
-      el.dataset.gsapTimeline = true
+      globalTimelines[gsapId] = timeline
 
-      gsapContext.add(() => globalTimelines[el.dataset.gsapId])
+      gsapContext.add(() => globalTimelines[gsapId])
     }
   },
 
-  mounted(el, binding) {
+  async mounted(el, binding) {
+    // Wait for hydration to complete before any GSAP manipulation
+    // This prevents hydration mismatch warnings in Nuxt
+    await nextTick()
+
+    // Use requestAnimationFrame to ensure we're after hydration
+    await new Promise(resolve => requestAnimationFrame(resolve))
+
+    // DON'T add data-gsap-id or data-gsap-timeline to DOM to avoid hydration mismatch
+    // These are only stored as internal properties (el._gsapId)
+    // Only data-vgsap-* from SSR are kept
+
     let timeline
     const mm = gsap.matchMedia()
 
     // Refresh scrollTrigger from .timeline after all has mounted
     if (binding.modifiers.timeline) {
-      globalTimelines[el.dataset.gsapId]?.scrollTrigger?.refresh()
+      // DON'T set el.dataset.gsapTimeline - causes hydration mismatch
+
+      // If the timeline element itself uses SplitText, we need to recreate the timeline
+      // after hydration to ensure proper DOM manipulation order
+      if (binding.modifiers.splitText && !el._splitText) {
+        // SplitText already waited above
+
+        // Kill the existing timeline created in beforeMount
+        const existingTimeline = globalTimelines[el._gsapId]
+        if (existingTimeline) {
+          existingTimeline.scrollTrigger?.kill()
+          existingTimeline.kill()
+        }
+
+        // Recreate the timeline with SplitText
+        const newTimeline = prepareTimeline(el, binding, configOptions, false)
+        globalTimelines[el._gsapId] = newTimeline
+        gsapContext.add(() => globalTimelines[el._gsapId])
+      }
+
+      // Wait for next tick to ensure all child .add directives have been added
+      await nextTick()
+
+      globalTimelines[el._gsapId]?.scrollTrigger?.refresh()
       ScrollTrigger?.normalizeScroll(true)
     }
     else {
       // All directives that are not .timeline
 
       if (binding.modifiers.magnetic) return addMagneticEffect(el, binding)
+
+      // Wait for next tick before DOM manipulation for splitText
+      if (binding.modifiers.splitText) {
+        await nextTick()
+      }
 
       const breakpoint = configOptions?.breakpoint || 768
       if (binding.modifiers.desktop) {
@@ -105,16 +150,44 @@ export const vGsapDirective = (
       }
 
       if (binding.modifiers.add) {
-        let order
-          = getValueFromModifier(binding, 'order-')
-          || getValueFromModifier(binding, 'suggestedOrder-')
-        if (binding.modifiers.withPrevious) order = '<'
+        // Use nextTick to ensure all parent components have completed their beforeMount phase
+        nextTick(() => {
+          let order
+            = getValueFromModifier(binding, 'order-')
+            || getValueFromModifier(binding, 'suggestedOrder-')
+          if (binding.modifiers.withPrevious) order = '<'
 
-        if (!el.closest(`[data-gsap-timeline="true"]`)?.dataset?.gsapId) return
+          // Try multiple approaches to find the parent timeline
+          let parentTimelineElement = el.closest(`[data-gsap-timeline="true"]`)
+          // If not found with data attribute, try finding by looking for timeline modifier in parent elements
+          if (!parentTimelineElement) {
+            let currentParent = el.parentElement
+            while (currentParent) {
+              if (currentParent.dataset.gsapId && globalTimelines[currentParent.dataset.gsapId]) {
+                parentTimelineElement = currentParent
+                break
+              }
+              currentParent = currentParent.parentElement
+            }
+          }
 
-        globalTimelines[
-          el.closest(`[data-gsap-timeline="true"]`).dataset.gsapId
-        ]?.add(timeline, order)
+          if (!parentTimelineElement?.dataset?.gsapId) {
+            return
+          }
+
+          // Use a retry mechanism to ensure parent timeline is ready
+          const addToParentTimeline = () => {
+            const parentTimeline = globalTimelines[parentTimelineElement.dataset.gsapId]
+            if (!parentTimeline) {
+              // Parent timeline not ready yet, retry after a short delay
+              setTimeout(addToParentTimeline, 10)
+              return
+            }
+            parentTimeline.add(timeline, order)
+          }
+          addToParentTimeline()
+        })
+        return // Exit early to avoid creating standalone timeline
       }
     }
 
@@ -125,8 +198,17 @@ export const vGsapDirective = (
   },
 
   unmounted(el) {
-    ScrollTrigger.getById(el.dataset.gsapId)?.kill()
-    globalTimelines[el.dataset.gsapId]?.scrollTrigger?.kill()
+    const gsapId = el._gsapId || el.dataset.gsapId
+    if (gsapId) {
+      ScrollTrigger.getById(gsapId)?.kill()
+      globalTimelines[gsapId]?.scrollTrigger?.kill()
+    }
+
+    // Clean up SplitText if it exists
+    if (el._splitText) {
+      el._splitText.revert()
+      delete el._splitText
+    }
 
     gsapContext.revert() // remove gsap timeline
     removeEventListener('resize', resizeListener) // remove resizeListener
@@ -156,8 +238,148 @@ function assignChildrenOrderAttributesFor(vnode, startOrder?): number {
   return order
 }
 
-function prepareTimeline(el, binding, configOptions) {
+function prepareSplitText(el, binding) {
+  if (binding.modifiers.splitText) {
+    // Determine the split type based on modifiers (only one type supported)
+    let splitType = 'chars'
+
+    if (binding.modifiers.lines) {
+      splitType = 'lines'
+    }
+    else if (binding.modifiers.words) {
+      splitType = 'words'
+    }
+    // chars is default, no need to check
+
+    // Additional options for SplitText
+    const splitOptions: any = {
+      type: splitType,
+      ...binding.value?.splitText || {},
+    }
+
+    // Add mask support if specified in modifiers
+    if (binding.modifiers.mask) {
+      // Determine mask type based on split type
+      if (binding.modifiers.lines) {
+        splitOptions.mask = 'lines'
+      }
+      else if (binding.modifiers.words) {
+        splitOptions.mask = 'words'
+      }
+      else {
+        splitOptions.mask = 'chars' // Default
+      }
+    }
+
+    // Support onSplit callback from options
+    const onSplitCb = splitOptions.onSplit
+    // Whether to wait for custom fonts before final split (default: true)
+    const waitForFonts = splitOptions.waitForFonts !== false
+
+    // Helper to create and store a SplitText instance
+    const doSplit = () => {
+      // Clean up any previous instance before re-splitting
+      if (el._splitText && typeof el._splitText.revert === 'function') {
+        try {
+          el._splitText.revert()
+        }
+        catch (e) {
+          /* noop */
+        }
+      }
+      const instance = new SplitText(el, splitOptions)
+      el._splitText = instance
+
+      // Apply padding to mask containers to prevent clipping of descenders (g, p, q, y, j)
+      if (binding.modifiers.mask) {
+        const maskPadding = splitOptions.maskPadding ?? '0'
+        const containers = []
+
+        // Get the appropriate mask containers based on split type
+        if (splitOptions.mask === 'lines' && instance.lines) {
+          // For lines mask, each line is wrapped in a parent container with overflow
+          containers.push(...Array.from(instance.lines).map((line: any) => line.parentElement).filter(Boolean))
+        }
+        else if (splitOptions.mask === 'words' && instance.words) {
+          containers.push(...Array.from(instance.words).map((word: any) => word.parentElement).filter(Boolean))
+        }
+        else if (splitOptions.mask === 'chars' && instance.chars) {
+          containers.push(...Array.from(instance.chars).map((char: any) => char.parentElement).filter(Boolean))
+        }
+
+        // Apply padding-bottom to prevent clipping descenders
+        containers.forEach((container: HTMLElement) => {
+          if (container && container.style) {
+            container.style.paddingBottom = maskPadding
+            // Ensure line-height is sufficient for descenders
+            if (!container.style.lineHeight || container.style.lineHeight === 'normal') {
+              container.style.lineHeight = 'normal'
+            }
+          }
+        })
+      }
+
+      // Fire user callback if provided
+      if (typeof onSplitCb === 'function') {
+        try {
+          onSplitCb({ el, split: instance })
+        }
+        catch (e) {
+          /* noop */
+        }
+      }
+      // Also dispatch a DOM event so users can listen without code changes
+      try {
+        el.dispatchEvent(new CustomEvent('vgsap:split', { detail: { el, split: instance } }))
+      }
+      catch (e) { /* noop */ }
+
+      // If there is a ScrollTrigger tied to this element, refresh it after splitting
+      try {
+        const gsapId = el._gsapId || el.dataset.gsapId
+        if (gsapId) {
+          ScrollTrigger.getById?.(gsapId)?.refresh?.()
+        }
+      }
+      catch (e) {
+        /* noop */
+      }
+
+      return instance
+    }
+
+    // Perform an initial split immediately so downstream code has targets
+    const initialSplit = doSplit()
+
+    // If requested, perform a final split after fonts finish loading for accurate measurements
+    if (waitForFonts && typeof document !== 'undefined' && (document as any).fonts) {
+      try {
+        const fonts: any = (document as any).fonts
+        // If fonts aren't fully loaded yet, wait and re-split
+        const ready: Promise<any> = fonts.ready
+        if (ready && fonts.status !== 'loaded') {
+          ready.then(() => {
+            doSplit()
+          }).catch(() => {
+            // Ignore font load errors; keep initial split
+          })
+        }
+      }
+      catch (e) { /* noop */ }
+    }
+
+    return initialSplit
+  }
+}
+
+function prepareTimeline(el, binding, configOptions, skipSplitText = false) {
   const timelineOptions: TIMELINE_OPTIONS = {}
+
+  // Prepare SplitText if needed before creating the timeline
+  // Skip in beforeMount to avoid hydration issues, will be done in mounted
+  if (binding.modifiers.splitText && !el._splitText && !skipSplitText) {
+    prepareSplitText(el, binding)
+  }
 
   const callbacks = prepareCallbacks(binding)
 
@@ -177,10 +399,12 @@ function prepareTimeline(el, binding, configOptions) {
     ?? (once == true ? false : undefined)
     ?? true
   const markers = binding.modifiers.markers
+  const gsapId = el._gsapId || el.dataset.gsapId
+
   if (binding.modifiers.whenVisible) {
     timelineOptions.scrollTrigger = {
       trigger: el,
-      id: el.dataset.gsapId,
+      id: gsapId,
       start: binding.value?.start ?? 'top 90%',
       end: binding.value?.end ?? 'top 50%',
       scroller,
@@ -199,7 +423,7 @@ function prepareTimeline(el, binding, configOptions) {
     const end = binding.value?.end ?? '+=1000px'
     timelineOptions.scrollTrigger = {
       trigger: el,
-      id: el.dataset.gsapId,
+      id: gsapId,
       start: binding.value?.start ?? 'center center',
       end,
       scroller,
@@ -214,7 +438,7 @@ function prepareTimeline(el, binding, configOptions) {
   if (binding.modifiers.parallax) {
     timelineOptions.scrollTrigger = {
       trigger: el,
-      id: el.dataset.gsapId,
+      id: gsapId,
       start: `top bottom`,
       end: `bottom top`,
       scroller,
@@ -258,13 +482,38 @@ function prepareTimeline(el, binding, configOptions) {
     timeline.to('body', { duration: +milliseconds / 1000 })
   }
 
-  // Prepare stagger if .stagger. is present
+  // Prepare stagger if .stagger. is present OR if splitText is used with stagger value
   // Value defaults to 0.2, but can be set in the values
   // .stagger.
-  const stagger = binding.modifiers.stagger
-    ? binding.value?.stagger ?? binding.value?.[1]?.stagger ?? '0.2'
-    : false
-  if (binding.modifiers.stagger) el = el.children
+  let stagger = false
+  if (binding.modifiers.stagger) {
+    stagger = binding.value?.stagger ?? binding.value?.[1]?.stagger ?? '0.2'
+  }
+  else if (binding.modifiers.splitText) {
+    // For SplitText, automatically use default stagger if not explicitly set to false or 0
+    if (binding.value?.stagger !== false && binding.value?.stagger !== 0) {
+      stagger = binding.value?.stagger ?? 0.1 // Default stagger for splitText
+    }
+  }
+  // Handle SplitText targets
+  let animationTarget = el
+  if (binding.modifiers.splitText && el._splitText) {
+    // Determine which target to use based on modifiers
+    // With or without mask, we always animate the text elements, not the masks
+    if (binding.modifiers.lines) {
+      animationTarget = el._splitText.lines
+    }
+    else if (binding.modifiers.words) {
+      animationTarget = el._splitText.words
+    }
+    else {
+      animationTarget = el._splitText.chars // Default
+    }
+  }
+  else if (binding.modifiers.stagger) {
+    // Only if NOT splitText, use children for stagger
+    animationTarget = el.children
+  }
 
   // Remove scrollTrigger attributes from binding.value to prevent console.warings "Invalid property ... Missing plugin?"
   delete binding.value?.start
@@ -274,6 +523,9 @@ function prepareTimeline(el, binding, configOptions) {
   delete binding.value?.markers
   delete binding.value?.toggleActions
 
+  // Remove SplitText configuration from binding.value to prevent passing it to GSAP animations
+  delete binding.value?.splitText
+
   // Setup actual animation step // Respects stagger if set
   const animationType: ANIMATION_TYPES = Object.keys(binding.modifiers).find(
     modifier => ['to', 'from', 'set', 'fromTo', 'call'].includes(modifier),
@@ -281,34 +533,41 @@ function prepareTimeline(el, binding, configOptions) {
   if (animationType == 'to') {
     if (binding.modifiers.fromInvisible)
       binding.value.opacity = binding.value.opacity || 1
-    timeline.to(el, { ...binding.value, stagger })
+    const toProps = { ...binding.value }
+    if (stagger !== false) toProps.stagger = stagger
+    timeline.to(animationTarget, toProps)
   }
-  if (animationType == 'set') timeline.set(el, { ...binding.value, stagger })
+  if (animationType == 'set') {
+    const setProps = { ...binding.value }
+    if (stagger !== false) setProps.stagger = stagger
+    timeline.set(animationTarget, setProps)
+  }
   if (animationType == 'from') {
-    timeline.from(el, {
+    const fromProps = {
       ...binding.value,
-      stagger,
       opacity:
         binding.value.opacity ?? (binding.modifiers.fromInvisible ? 0 : 1),
       duration: binding.value.duration || 0.5,
-    })
-    if (binding.modifiers.fromInvisible)
-      timeline.to(
-        el,
-        { opacity: 1, stagger, duration: binding.value.duration || 0.5 },
-        '<',
-      )
+    }
+    if (stagger !== false) fromProps.stagger = stagger
+    timeline.from(animationTarget, fromProps)
+
+    if (binding.modifiers.fromInvisible) {
+      const toProps: any = { opacity: 1, duration: binding.value.duration || 0.5 }
+      if (stagger !== false) toProps.stagger = stagger
+      timeline.to(animationTarget, toProps, '<')
+    }
   }
 
   // .fromTo=
   if (animationType == 'fromTo') {
     const values = binding.value
-    if (binding.modifiers.stagger) values[1].stagger = stagger
+    if (stagger !== false) values[1].stagger = stagger
     if (binding.modifiers.fromInvisible) {
       values[0].opacity = 0
       values[1].opacity = values[1].opacity || 1
     }
-    timeline.fromTo(el, binding.value?.[0], binding.value?.[1])
+    timeline.fromTo(animationTarget, binding.value?.[0], binding.value?.[1])
   }
 
   // .animateText. // .slow // .fast

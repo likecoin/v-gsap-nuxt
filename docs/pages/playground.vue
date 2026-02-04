@@ -393,6 +393,103 @@
 
     <section>
       <div
+        id="splittext"
+        class="header"
+      >
+        <h2>
+          <pre>.splitText</pre>
+        </h2>
+        <NuxtLink
+          to="/usage/splittext"
+          target="_blank"
+        >
+          See reference
+        </NuxtLink>
+      </div>
+      <div class="Grid">
+        <BoxComponent
+          code="v-gsap.splitText.chars.stagger.from='{ opacity: 0, y: 20 }'"
+          title="Character Animation"
+        >
+          <div
+            v-gsap.splitText.chars.stagger.from="{ opacity: 0, y: 20 }"
+            class="text-2xl font-bold text-center"
+          >
+            Amazing Text
+          </div>
+        </BoxComponent>
+
+        <BoxComponent
+          code="v-gsap.splitText.words.from='{ opacity: 0, x: -30, stagger: 0.1 }'"
+          title="Word by Word"
+        >
+          <div
+            v-gsap.splitText.words.from="{ opacity: 0, x: -30, stagger: 0.1 }"
+            class="text-lg text-center"
+          >
+            Beautiful word animation effect
+          </div>
+        </BoxComponent>
+
+        <BoxComponent
+          code="v-gsap.splitText.mask.chars.from='{ y: 100%, stagger: 0.05 }'"
+          title="Masked Characters"
+        >
+          <div
+            v-gsap.splitText.mask.chars.from="{ y: '100%', stagger: 0.05 }"
+            class="text-xl font-semibold text-center"
+          >
+            Reveal Effect
+          </div>
+        </BoxComponent>
+
+        <BoxComponent
+          code="v-gsap.splitText.lines.mask.from='{ y: 100%, stagger: 0.2 }'"
+          title="Line by Line"
+        >
+          <div
+            v-gsap.splitText.lines.mask.from="{ y: '100%', stagger: 0.2 }"
+            class="text-lg text-center leading-relaxed"
+          >
+            This is a multi-line text<br>
+            that animates line by line<br>
+            with elegant reveals
+          </div>
+        </BoxComponent>
+
+        <BoxComponent
+          code="v-gsap.splitText.chars.from='{ opacity: 0, scale: 0, stagger: 0.03 }'"
+          title="Explosion Effect"
+        >
+          <div
+            v-gsap.splitText.chars.from="{
+              opacity: 0,
+              scale: 0,
+              rotation: 'random(-180, 180)',
+              stagger: 0.03,
+            }"
+            class="text-2xl font-bold text-center text-orange-500"
+          >
+            EXPLOSIVE!
+          </div>
+        </BoxComponent>
+
+        <BoxComponent
+          code="v-gsap.splitText.chars.whenVisible.from='{ opacity: 0, stagger: 0.08 }'"
+          title="Typewriter Effect"
+        >
+          <div
+            v-gsap.splitText.chars.whenVisible.from="{ opacity: 0, stagger: 0.08 }"
+            class="text-lg font-mono text-center"
+          >
+            console.log('Hello World!');
+          </div>
+        </BoxComponent>
+      </div>
+    </section>
+
+    <section>
+      <div
         id="whilehover"
         class="header"
       >
