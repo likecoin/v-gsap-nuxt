@@ -2,6 +2,10 @@
 
 ## v1.5.12
 
+[compare changes](https://github.com/holux-design/v-gsap-nuxt/compare/v1.5.12...v1.5.12)
+
+## v1.5.12
+
 [compare changes](https://github.com/holux-design/v-gsap-nuxt/compare/v1.5.11...v1.5.12)
 
 ### 🏡 Chore
