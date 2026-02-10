@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.5.12
+
+[compare changes](https://github.com/holux-design/v-gsap-nuxt/compare/v1.5.11...v1.5.12)
+
+### 🏡 Chore
+
+- **release:** Update gsap to version 3.14.2 ([9a52c64](https://github.com/holux-design/v-gsap-nuxt/commit/9a52c64))
+
+### ❤️ Contributors
+
+- Holux-design <office@holux-design.at>
+
 ## v1.5.11
 
 [compare changes](https://github.com/holux-design/v-gsap-nuxt/compare/v1.5.10...v1.5.11)
