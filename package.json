@@ -1,9 +1,12 @@
 {
-  "name": "v-gsap-nuxt",
-  "version": "1.5.12",
+  "name": "@likecoin/v-gsap-nuxt",
+  "version": "1.5.12-like.0",
   "description": "GSAP Directive for Nuxt 3 with SplitText support",
-  "repository": "holux-design/v-gsap-nuxt",
+  "repository": "likecoin/v-gsap-nuxt",
   "homepage": "https://v-gsap-nuxt.vercel.app",
+  "publishConfig": {
+    "access": "public"
+  },
   "contributors": [
     {
       "name": "Lukas Hofstätter (Holux Design)"

@@ -1,11 +1,13 @@
-# `v-gsap` for Nuxt (and Vue)
+# `@likecoin/v-gsap-nuxt`
+
+> Fork of [`v-gsap-nuxt`](https://github.com/holux-design/v-gsap-nuxt) published under the `@likecoin` npm scope. Adds lazy-loading of `gsap` and its plugins so pages that never use `v-gsap` ship zero gsap, and pages that only use `.from` get `gsap` core (~70KB) instead of the full bundle (~165KB). Public API is unchanged from upstream.
 
 [![npm version][npm-version-src]][npm-version-href]
 [![npm downloads][npm-downloads-src]][npm-downloads-href]
 [![License][license-src]][license-href] [![Nuxt][nuxt-src]][nuxt-href]
 
 [![](docs/public/cover.png)](https://v-gsap-nuxt.vercel.app/) (Click image to
-visit the docs)
+visit the upstream docs)
 
 ## Features
 
@@ -24,10 +26,18 @@ visit the docs)
 
 ## Installation
 
-Install the module to your Nuxt application with one command:
+Install the module from npm:
 
 ```bash
-npx nuxi module add v-gsap-nuxt
+npm install @likecoin/v-gsap-nuxt
+```
+
+Then add it to `modules` in `nuxt.config.ts`:
+
+```ts
+export default defineNuxtConfig({
+  modules: ['@likecoin/v-gsap-nuxt'],
+})
 ```
 
 That's it! You can now use `v-gsap` in your Nuxt app ✨
@@ -83,13 +93,13 @@ This module itself is licensed under the MIT License.
 <!-- Badges -->
 
 [npm-version-src]:
-  https://img.shields.io/npm/v/v-gsap-nuxt/latest.svg?style=flat&colorA=020420&colorB=00DC82
-[npm-version-href]: https://npmjs.com/package/v-gsap-nuxt
+  https://img.shields.io/npm/v/@likecoin/v-gsap-nuxt/latest.svg?style=flat&colorA=020420&colorB=00DC82
+[npm-version-href]: https://npmjs.com/package/@likecoin/v-gsap-nuxt
 [npm-downloads-src]:
-  https://img.shields.io/npm/dm/v-gsap-nuxt.svg?style=flat&colorA=020420&colorB=00DC82
-[npm-downloads-href]: https://npm.chart.dev/v-gsap-nuxt
+  https://img.shields.io/npm/dm/@likecoin/v-gsap-nuxt.svg?style=flat&colorA=020420&colorB=00DC82
+[npm-downloads-href]: https://npm.chart.dev/@likecoin/v-gsap-nuxt
 [license-src]:
-  https://img.shields.io/npm/l/v-gsap-nuxt.svg?style=flat&colorA=020420&colorB=00DC82
-[license-href]: https://npmjs.com/package/v-gsap-nuxt
+  https://img.shields.io/npm/l/@likecoin/v-gsap-nuxt.svg?style=flat&colorA=020420&colorB=00DC82
+[license-href]: https://npmjs.com/package/@likecoin/v-gsap-nuxt
 [nuxt-src]: https://img.shields.io/badge/Nuxt-020420?logo=nuxt.js
 [nuxt-href]: https://nuxt.com
