@@ -1,11 +1,3 @@
-import gsap from 'gsap'
-import { vGsapDirective } from './plugin'
+import { createLazyDirective } from './shared'
 
-export const vGsapVue = (configOptions?) => {
-  return vGsapDirective(
-    'vue',
-    configOptions || {},
-    gsap.context(() => {}),
-    null,
-  )
-}
+export const vGsapVue = (configOptions?) => createLazyDirective(configOptions || {})
