@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.5.12-like.2
+
+[compare changes](https://github.com/likecoin/v-gsap-nuxt/compare/v1.5.12-like.1...v1.5.12-like.2)
+
+### 🩹 Fixes
+
+- **csr:** Mirror SSR hider attrs on client to prevent SPA-nav FOUC ([a91f455](https://github.com/likecoin/v-gsap-nuxt/commit/a91f455))
+
+### ❤️ Contributors
+
+- William Chong <me@williamchong.cloud>
+
 ## v1.5.12-like.1
 
 [compare changes](https://github.com/likecoin/v-gsap-nuxt/compare/v1.5.12-like.0...v1.5.12-like.1)

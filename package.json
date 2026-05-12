@@ -1,6 +1,6 @@
 {
   "name": "@likecoin/v-gsap-nuxt",
-  "version": "1.5.12-like.1",
+  "version": "1.5.12-like.2",
   "description": "GSAP Directive for Nuxt 3 with SplitText support",
   "repository": "likecoin/v-gsap-nuxt",
   "homepage": "https://v-gsap-nuxt.vercel.app",
