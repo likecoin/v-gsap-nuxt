@@ -41,9 +41,22 @@ export function getValueFromModifier(binding, term: string) {
 }
 
 export function vGsapSSRProps(binding, configOptions) {
-  binding = loadPreset(binding, configOptions)
-  const m = binding.modifiers
-  const v = binding.value
+  // Clone the parts loadPreset mutates. Called on both SSR and the client
+  // beforeMount path; the inner core directive also calls loadPreset on the
+  // original binding, so mutating here would double-apply the preset and
+  // corrupt binding.value (array gets spread into an object literal).
+  const cloned = {
+    ...binding,
+    modifiers: { ...binding.modifiers },
+    value: Array.isArray(binding.value)
+      ? [...binding.value]
+      : (binding.value && typeof binding.value === 'object'
+          ? { ...binding.value }
+          : binding.value),
+  }
+  loadPreset(cloned, configOptions)
+  const m = cloned.modifiers
+  const v = cloned.value
   const fromValue = m.fromTo ? v?.[0] : v
   const fromOpacityZero
     = (m.from || m.fromTo)
@@ -85,9 +98,16 @@ export function createLazyDirective(configOptions) {
 
   return {
     getSSRProps: binding => vGsapSSRProps(binding, configOptions),
-    async beforeMount(el, binding, vnode) {
-      const h = await ensure()
-      return h.beforeMount(el, binding, vnode)
+    beforeMount(el, binding, vnode) {
+      // Mirror the SSR hider attrs synchronously before Vue inserts the
+      // element. getSSRProps only runs on the server, so without this, SPA
+      // route changes paint the element visible until the async gsap loader
+      // resolves and fromTo() snaps it invisible — a per-navigation FOUC.
+      const props = vGsapSSRProps(binding, configOptions)
+      for (const [key, value] of Object.entries(props)) {
+        if (value) el.setAttribute(key, 'true')
+      }
+      void ensure().then(h => h.beforeMount(el, binding, vnode))
     },
     async mounted(el, binding) {
       const h = await ensure()
