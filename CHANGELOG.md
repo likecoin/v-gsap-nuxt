@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.5.12-like.1
+
+[compare changes](https://github.com/likecoin/v-gsap-nuxt/compare/v1.5.12-like.0...v1.5.12-like.1)
+
+### 🩹 Fixes
+
+- **ssr:** Hide elements with `from.opacity: 0` to prevent FOUC ([5392757](https://github.com/likecoin/v-gsap-nuxt/commit/5392757))
+
+### ❤️ Contributors
+
+- William Chong <me@williamchong.cloud>
+
+## v1.5.12-like.0
+
+[compare changes](https://github.com/likecoin/v-gsap-nuxt/compare/v1.5.12...v1.5.12-like.0)
+
+### 🚀 Enhancements
+
+- **perf:** Lazy-load gsap and plugins on first directive use ([2379112](https://github.com/likecoin/v-gsap-nuxt/commit/2379112))
+
+### 🏡 Chore
+
+- Publish as `@likecoin` fork ([0c617fb](https://github.com/likecoin/v-gsap-nuxt/commit/0c617fb))
+
+### ❤️ Contributors
+
+- William Chong <me@williamchong.cloud>
+
 ## v1.5.12
 
 [compare changes](https://github.com/holux-design/v-gsap-nuxt/compare/v1.5.12...v1.5.12)
