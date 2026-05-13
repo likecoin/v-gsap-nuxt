@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.5.12-like.3
+
+[compare changes](https://github.com/likecoin/v-gsap-nuxt/compare/v1.5.12-like.2...v1.5.12-like.3)
+
+### 🩹 Fixes
+
+- **ssr:** Keep `.from` animations visible when hider pins `opacity: 0` ([114a2f9](https://github.com/likecoin/v-gsap-nuxt/commit/114a2f9))
+
+### ❤️ Contributors
+
+- William Chong <me@williamchong.cloud>
+
 ## v1.5.12-like.2
 
 [compare changes](https://github.com/likecoin/v-gsap-nuxt/compare/v1.5.12-like.1...v1.5.12-like.2)
