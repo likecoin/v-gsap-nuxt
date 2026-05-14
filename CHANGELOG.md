@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.5.12-like.4
+
+[compare changes](https://github.com/likecoin/v-gsap-nuxt/compare/v1.5.12-like.3...v1.5.12-like.4)
+
+### 🚀 Enhancements
+
+- **deps:** Widen `@nuxt/kit` range to support Nuxt 4 ([277e95b](https://github.com/likecoin/v-gsap-nuxt/commit/277e95b))
+
+### ❤️ Contributors
+
+- William Chong <me@williamchong.cloud>
+
 ## v1.5.12-like.3
 
 [compare changes](https://github.com/likecoin/v-gsap-nuxt/compare/v1.5.12-like.2...v1.5.12-like.3)
